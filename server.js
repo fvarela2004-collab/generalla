@@ -261,6 +261,7 @@ io.on('connection', socket => {
         const sc = G.scores[pid];
         if (sc.gen === null || sc.gen === undefined){
           G.log = '¡GENERALLA SERVIDA! ¡Ganaste automáticamente! 🎉';
+          G.event = 'SERVIDA';
           broadcast(currentRoom, 'SYS', {txt: '🎲 ¡GENERALLA SERVIDA de '+pname(G,pid)+'! Gana automáticamente.'});
           sc.gen = 100;
           CATS.forEach(k => { if (sc[k]===null||sc[k]===undefined) sc[k] = 0; });
@@ -271,12 +272,17 @@ io.on('connection', socket => {
       }
 
       if (allSame(G.dice)){
+        G.event = 'GEN';
         broadcast(currentRoom, 'SYS', {txt: '🎲 Generalla de '+pname(G,pid)+'!'});
+      } else {
+        G.event = '';
       }
 
-      // Si se usaron todos los tiros → anotar automáticamente sin necesidad de apretar botón
+      // Después del 3er tiro el usuario anota manualmente
       if (G.rollsLeft === 0){
-        autoScoreImmediate(room);
+        G.scored = true;
+        G.log = "Usaste todos los tiros. \u00bfQu\u00e9 anot\u00e1s?";
+        broadcast(currentRoom, "STATE", G);
         return;
       }
 
