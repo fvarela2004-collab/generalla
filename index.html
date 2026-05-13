@@ -236,12 +236,38 @@ select.inp{cursor:pointer;appearance:none;
 @keyframes cfall{0%{opacity:1;transform:translateY(-10px) rotateZ(0)}100%{opacity:0;transform:translateY(110vh) rotateZ(720deg)}}
 
 /* CELEB */
-#celeb{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75)}
+#celeb{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,rgba(5,20,5,.97) 0%,rgba(0,0,0,.99) 100%);
+  cursor:pointer;overflow:hidden}
 #celeb.on{display:flex}
-.cbox{text-align:center;animation:cpop .5s cubic-bezier(.175,.885,.32,1.275)}
-@keyframes cpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
-.ct{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;color:var(--gold);line-height:1;text-shadow:0 0 40px rgba(201,168,76,.5)}
-.cs{font-size:15px;color:var(--cream2);margin-top:12px}
+.cbox{text-align:center;position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+
+/* MESSI SVG */
+.cmessi-wrap{position:relative;margin-bottom:.5rem}
+.cmessi{width:180px;height:220px;position:relative;animation:messiIn .7s cubic-bezier(.175,.885,.32,1.275) forwards}
+@keyframes messiIn{from{transform:translateY(60px) scale(.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+
+/* Stars around messi */
+.cstar{position:absolute;font-size:22px;animation:starSpin 2s linear infinite}
+@keyframes starSpin{from{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(1.3)}to{transform:rotate(360deg) scale(1)}}
+
+.cdice{display:flex;justify-content:center;gap:8px;margin-bottom:1rem}
+.cdice .die{width:52px;height:52px;padding:7px;gap:3px;border-color:var(--gold);
+  transform:translateY(-5px);box-shadow:0 6px 20px rgba(201,168,76,.5)}
+
+.ct{font-family:'Playfair Display',serif;font-size:54px;font-weight:900;color:var(--gold);line-height:1;
+  text-shadow:0 0 60px rgba(201,168,76,.9),0 0 120px rgba(201,168,76,.5);
+  animation:glow 1.2s ease-in-out infinite alternate;letter-spacing:2px}
+@keyframes glow{
+  from{text-shadow:0 0 40px rgba(201,168,76,.7),0 0 80px rgba(201,168,76,.3),0 0 0 transparent}
+  to{text-shadow:0 0 80px rgba(201,168,76,1),0 0 160px rgba(201,168,76,.7),0 0 240px rgba(201,168,76,.3)}}
+.cs{font-size:15px;color:var(--cream2);margin-top:10px;letter-spacing:.5px}
+.ctap{font-size:11px;color:var(--t3);margin-top:20px;letter-spacing:2.5px;text-transform:uppercase;animation:blink2 1.5s infinite}
+@keyframes blink2{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* Rays behind messi */
+.crays{position:absolute;inset:-40px;z-index:0;animation:rayspin 8s linear infinite;pointer-events:none}
+@keyframes rayspin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 
 /* RESPONSIVE */
 @media(max-width:900px){
@@ -257,7 +283,17 @@ select.inp{cursor:pointer;appearance:none;
 <body>
 
 <div id="toast"></div>
-<div id="celeb"><div class="cbox"><div class="ct" id="ct">¡GENERALLA!</div><div class="cs" id="cs"></div></div></div>
+<div id="celeb" onclick="document.getElementById('celeb').classList.remove('on')">
+  <div class="cbox">
+    <div class="cmessi-wrap">
+      <div class="cmessi" id="cmessi"></div>
+    </div>
+    <div class="cdice" id="cdice"></div>
+    <div class="ct" id="ct">¡GENERALLA!</div>
+    <div class="cs" id="cs">Cinco iguales, como los dedos de la mano.</div>
+    <div class="ctap">Tocá para continuar</div>
+  </div>
+</div>
 <div class="mo" id="mo"><div class="mb"><div class="mt" id="mt"></div><div class="mbd" id="mbd"></div><div class="mac" id="mac"></div></div></div>
 
 <!-- HOME -->
@@ -378,6 +414,7 @@ select.inp{cursor:pointer;appearance:none;
         <span class="rb" onclick="doReact('🫡','Sos un crack')">🫡</span>
         <span class="rb" onclick="doReact('🔥','Me cagaron')">🔥</span>
         <span class="rb" onclick="doReact('🎯','Me la vi venir')">🎯</span>
+        <span class="rb" onclick="doReact('🧉','Tomate un mate')">🧉</span>
       </div>
       <div class="cinp">
         <input id="cinp" placeholder="Escribí algo..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()">
@@ -547,9 +584,9 @@ function renderGame(){
   // timer reset on new turn
   const tk=(G.turnOrder[G.currentTurn%G.turnOrder.length]||'')+G.currentTurn;
   if(tk!==_lastTurnKey){_lastTurnKey=tk;startClientTimer();}
-  // celebration check
-  if(G.log&&(G.log.includes('GENERALLA SERVIDA')||G.log.includes('¡GENERALLA!')||G.log.includes('SEGUNDA')))
-    triggerCeleb(G.log.includes('SERVIDA')||G.log.includes('SEGUNDA'));
+  // celebration check via G.event
+  if(G.event==='SERVIDA') triggerCeleb(true);
+  else if(G.event==='GEN') triggerCeleb(false);
 }
 
 function curPid(){ return G&&G.turnOrder.length?G.turnOrder[G.currentTurn%G.turnOrder.length]:null; }
@@ -732,24 +769,117 @@ function startClientTimer(){
 /* ═══════════════════════════ CELEBRATION ══════════════════════════ */
 let cc=false;
 function triggerCeleb(isServida){
-  if(cc)return;cc=true;setTimeout(()=>cc=false,4000);
+  if(cc)return;cc=true;setTimeout(()=>cc=false,8000);
   const el=document.getElementById('celeb');
+
+  // title + subtitle
   document.getElementById('ct').textContent=isServida?'¡GENERALLA SERVIDA!':'¡GENERALLA!';
-  document.getElementById('cs').textContent=isServida?'¡Primer tiro, cinco iguales! ¡Ganaste! 💯':'Cinco iguales, como los dedos de la mano.';
-  el.classList.add('on');confettiBlast();
-  setTimeout(()=>el.classList.remove('on'),3500);
+  document.getElementById('cs').textContent=isServida
+    ?'¡Primer tiro, cinco iguales! ¡Ganaste automáticamente! 💯'
+    :'Cinco iguales, como los dedos de la mano. 🎲';
+
+  // draw messi SVG
+  const mw=document.getElementById('cmessi');
+  if(mw){
+    mw.innerHTML=`
+    <svg viewBox="0 0 180 220" xmlns="http://www.w3.org/2000/svg" style="width:180px;height:220px">
+      <!-- rays background -->
+      <g style="transform-origin:90px 110px;animation:rayspin 8s linear infinite">
+        ${Array.from({length:16},(_,i)=>{
+          const a=i*(360/16)*Math.PI/180;
+          const x1=90+30*Math.cos(a),y1=110+30*Math.sin(a);
+          const x2=90+120*Math.cos(a),y2=110+120*Math.sin(a);
+          return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="rgba(201,168,76,0.12)" stroke-width="18"/>`;
+        }).join('')}
+      </g>
+      <!-- body / shirt (argentina light blue) -->
+      <ellipse cx="90" cy="175" rx="38" ry="28" fill="#74b9e8"/>
+      <!-- shirt stripes -->
+      <rect x="58" y="148" width="10" height="56" fill="white" opacity=".5" rx="2"/>
+      <rect x="72" y="148" width="10" height="56" fill="white" opacity=".5" rx="2"/>
+      <rect x="86" y="148" width="10" height="56" fill="white" opacity=".5" rx="2"/>
+      <rect x="100" y="148" width="10" height="56" fill="white" opacity=".5" rx="2"/>
+      <!-- neck -->
+      <rect x="82" y="138" width="16" height="16" fill="#e8c49a" rx="4"/>
+      <!-- head -->
+      <ellipse cx="90" cy="118" rx="26" ry="28" fill="#e8c49a"/>
+      <!-- hair (dark brown) -->
+      <ellipse cx="90" cy="95" rx="26" ry="14" fill="#3d1f00"/>
+      <ellipse cx="68" cy="108" rx="8" ry="12" fill="#3d1f00"/>
+      <ellipse cx="112" cy="108" rx="8" ry="12" fill="#3d1f00"/>
+      <!-- beard -->
+      <ellipse cx="90" cy="135" rx="16" ry="9" fill="#5c3010" opacity=".7"/>
+      <!-- eyes -->
+      <ellipse cx="79" cy="118" rx="5" ry="5.5" fill="white"/>
+      <ellipse cx="101" cy="118" rx="5" ry="5.5" fill="white"/>
+      <circle cx="80" cy="119" r="3" fill="#3d2800"/>
+      <circle cx="102" cy="119" r="3" fill="#3d2800"/>
+      <circle cx="81" cy="118" r="1" fill="white"/>
+      <circle cx="103" cy="118" r="1" fill="white"/>
+      <!-- eyebrows -->
+      <path d="M73 111 Q79 107 85 111" stroke="#3d1f00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M95 111 Q101 107 107 111" stroke="#3d1f00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <!-- nose -->
+      <path d="M88 123 Q87 130 90 132 Q93 130 92 123" fill="#d4a882" stroke="none"/>
+      <!-- mouth (smile) -->
+      <path d="M82 137 Q90 143 98 137" stroke="#8b4513" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <!-- arms raised -->
+      <line x1="58" y1="158" x2="30" y2="128" stroke="#74b9e8" stroke-width="12" stroke-linecap="round"/>
+      <line x1="122" y1="158" x2="150" y2="128" stroke="#74b9e8" stroke-width="12" stroke-linecap="round"/>
+      <!-- hands -->
+      <circle cx="30" cy="125" r="9" fill="#e8c49a"/>
+      <circle cx="150" cy="125" r="9" fill="#e8c49a"/>
+      <!-- trophy in left hand -->
+      <rect x="18" y="100" width="14" height="22" fill="#c9a84c" rx="2"/>
+      <rect x="14" y="120" width="22" height="5" fill="#c9a84c" rx="1"/>
+      <path d="M18 100 Q25 90 32 100" fill="#e8c96a" stroke="#c9a84c" stroke-width="1"/>
+      <rect x="22" y="88" width="6" height="8" fill="#c9a84c" rx="1"/>
+      <circle cx="25" cy="85" r="5" fill="#e8c96a"/>
+      <!-- stars above head (3 estrellas arg) -->
+      <text x="90" y="75" text-anchor="middle" font-size="18" fill="#c9a84c">⭐⭐⭐</text>
+      <!-- number 10 on shirt -->
+      <text x="90" y="178" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="serif">10</text>
+    </svg>`;
+  }
+
+  // show dice
+  const dc=document.getElementById('cdice');
+  if(dc&&G&&G.dice){
+    dc.innerHTML='';
+    G.dice.forEach((val,i)=>{
+      const d=document.createElement('div');d.className='die saved';
+      d.style.animationDelay=i*80+'ms';
+      d.innerHTML=pipHTML(val)+'<div class="dlk">🔒</div>';
+      dc.appendChild(d);
+      setTimeout(()=>{d.classList.add('gbounce');setTimeout(()=>d.classList.remove('gbounce'),800);},300+i*80);
+    });
+  }
+
+  el.classList.add('on');
+  confettiBlast();
+
+  // bounce game dice too
   for(let i=0;i<5;i++) setTimeout(()=>{
     const d=document.getElementById('die'+i);
     if(d){d.classList.add('gbounce');setTimeout(()=>d.classList.remove('gbounce'),800);}
   },i*90);
 }
 function confettiBlast(){
-  const cols=['#c9a84c','#e8c96a','#4caf72','#f2ead8','#e74c3c'];
-  for(let i=0;i<60;i++) setTimeout(()=>{
-    const el=document.createElement('div');el.className='cf';
-    el.style.cssText=`left:${Math.random()*100}vw;top:-10px;background:${cols[i%cols.length]};transform:rotateZ(${Math.random()*360}deg);animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*.4}s;`;
-    document.body.appendChild(el);setTimeout(()=>el.remove(),4500);
-  },i*22);
+  const cols=['#c9a84c','#e8c96a','#f5dea0','#4caf72','#74b9e8','#ffffff','#e74c3c','#f5f0e4','#9b59b6'];
+  const shapes=['8px','10px','6px'];
+  for(let i=0;i<120;i++) setTimeout(()=>{
+    const el=document.createElement('div');
+    const sz=shapes[i%shapes.length];
+    const isCircle=i%4===0;
+    el.style.cssText=`position:fixed;z-index:500;width:${sz};height:${isCircle?sz:'14px'};
+      left:${Math.random()*100}vw;top:-15px;
+      background:${cols[i%cols.length]};
+      border-radius:${isCircle?'50%':'2px'};
+      pointer-events:none;
+      animation:cfall ${1.8+Math.random()*2.5}s ${Math.random()*.6}s linear forwards;
+      transform:rotateZ(${Math.random()*360}deg)`;
+    document.body.appendChild(el);setTimeout(()=>el.remove(),5000);
+  },i*18);
 }
 
 /* ═══════════════════════════ CHAT ═════════════════════════════════ */
